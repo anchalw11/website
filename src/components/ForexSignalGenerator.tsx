@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Zap, TrendingUp, TrendingDown, Activity, Settings, Play, Pause, RefreshCw, Globe } from 'lucide-react';
+import { Bot, Zap, TrendingUp, TrendingDown, Activity, Globe, Settings, Play, Pause, RefreshCw } from 'lucide-react';
 
 interface ForexSignal {
   id: string;
@@ -39,7 +39,6 @@ const ForexSignalGenerator: React.FC = () => {
     fvgCount: 0,
     activeSignals: 0
   });
-  const [currentTimezone, setCurrentTimezone] = useState('UTC');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const forexSymbols = [
@@ -101,6 +100,8 @@ const ForexSignalGenerator: React.FC = () => {
     private orderBlocks: Map<string, any[]> = new Map();
     private lastSignalTime: Map<string, number> = new Map();
     private priceCache: Map<string, any> = new Map();
+    private lastUpdateTime: Map<string, number> = new Map();
+    private cacheValidityMs = 30000; // 30 seconds cache
 
     private confirmationScores = {
       'swingBullishBOS': 30,
@@ -149,7 +150,19 @@ const ForexSignalGenerator: React.FC = () => {
           }
         }
       }
-      throw new Error(`All ${maxRetries} attempts failed. Last error: ${lastError}`);
+      throw new Error(`All ${maxRetries} attempts failed. Last error: ${lastError.message}`);
+    }
+
+    getCachedPrice(symbol: string) {
+      if (this.priceCache.has(symbol) && (Date.now() - this.lastUpdateTime.get(symbol)! < this.cacheValidityMs)) {
+        return this.priceCache.get(symbol);
+      }
+      return null;
+    }
+
+    setCachedPrice(symbol: string, priceData: any) {
+      this.priceCache.set(symbol, priceData);
+      this.lastUpdateTime.set(symbol, Date.now());
     }
 
     async fetchCurrencyBeaconPrice(symbol: string) {
@@ -196,11 +209,8 @@ const ForexSignalGenerator: React.FC = () => {
     }
 
     async getPrice(symbol: string) {
-      // Check cache first
-      const cached = this.priceCache.get(symbol);
-      if (cached && (Date.now() - cached.timestamp < 30000)) {
-        return cached.data;
-      }
+      const cached = this.getCachedPrice(symbol);
+      if (cached) return cached;
 
       try {
         const dedicatedPairs = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD'];
@@ -222,12 +232,10 @@ const ForexSignalGenerator: React.FC = () => {
           isReal: true,
           rawPrice: result.price
         };
-
-        // Cache the result
-        this.priceCache.set(symbol, { data: priceData, timestamp: Date.now() });
+        this.setCachedPrice(symbol, priceData);
         return priceData;
       } catch (error) {
-        // Fallback to realistic mock data
+        // Fallback to mock data
         const basePrices: {[key: string]: number} = {
           'EUR/USD': 1.0850, 'GBP/USD': 1.2750, 'USD/JPY': 149.50,
           'XAU/USD': 2020.00, 'XAG/USD': 24.50, 'USOIL': 75.00
@@ -244,7 +252,7 @@ const ForexSignalGenerator: React.FC = () => {
       }
     }
 
-    private getPrecision(symbol: string) {
+    getPrecision(symbol: string) {
       if (['USDJPY'].includes(symbol)) return 3;
       if (['EURUSD', 'GBPUSD', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD'].includes(symbol)) return 5;
       return 2;
@@ -999,25 +1007,9 @@ const ForexSignalGenerator: React.FC = () => {
     });
   };
 
-  const updateDateTime = () => {
-    const now = new Date();
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit', 
-      timeZone: currentTimezone, 
-      timeZoneName: 'short' 
-    };
-    return now.toLocaleDateString('en-US', options);
-  };
-
   useEffect(() => {
     addLog('💱 Forex SMC Signal Generator initialized', 'success');
-    addLog('📊 Using Final Hybrid Engine (CurrencyBeacon & taapi.io)', 'info');
+    addLog('📊 Ready to generate forex trading signals', 'info');
     
     return () => {
       if (intervalRef.current) {
@@ -1035,13 +1027,13 @@ const ForexSignalGenerator: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-blue-500/30 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <div className="text-4xl">💱</div>
             <div>
               <h2 className="text-2xl font-bold text-white tracking-wider">Forex Signal Generator</h2>
-              <p className="text-gray-400">Real-Time Smart Money Concepts - NO FAKE DATA</p>
+              <p className="text-gray-400">Professional Smart Money Concepts for Forex Markets</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -1049,55 +1041,15 @@ const ForexSignalGenerator: React.FC = () => {
             <span className="text-gray-300">{isRunning ? 'Running' : 'Stopped'}</span>
           </div>
         </div>
-
-        {/* Timezone Selector */}
-        <div className="flex justify-center items-center gap-4 mb-4">
-          <label className="text-cyan-400 font-semibold">🌍 Timezone:</label>
-          <select
-            value={currentTimezone}
-            onChange={(e) => setCurrentTimezone(e.target.value)}
-            className="px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
-          >
-            <option value="UTC">UTC (GMT+0)</option>
-            <option value="America/New_York">New York (EST/EDT)</option>
-            <option value="Europe/London">London (GMT/BST)</option>
-            <option value="Asia/Tokyo">Tokyo (JST)</option>
-            <option value="Asia/Shanghai">Shanghai (CST)</option>
-            <option value="Australia/Sydney">Sydney (AEST/AEDT)</option>
-          </select>
-        </div>
-
-        {/* API Status */}
-        <div className="bg-gray-800/50 rounded-lg p-4 text-center">
-          <div className="text-cyan-400 font-bold mb-1">Final Hybrid Engine</div>
-          <div className="text-gray-400 text-sm">CurrencyBeacon & taapi.io</div>
-        </div>
-      </div>
-
-      {/* Status Section */}
-      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <div className={`w-3 h-3 rounded-full ${isRunning ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
-            <div>
-              <div className="text-white font-semibold">{isRunning ? 'System Connected' : 'Ready to Connect'}</div>
-              <div className="text-gray-400 text-sm">Live data sources {isRunning ? 'active' : 'standby'}</div>
-            </div>
-          </div>
-          <div className="text-right font-mono">
-            <div className="text-white">{updateDateTime()}</div>
-            <div className="text-gray-400 text-sm">Last Update: {new Date().toLocaleTimeString()}</div>
-          </div>
-        </div>
       </div>
 
       {/* Controls and Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Trading Settings */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-blue-500/30 p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <Settings className="w-5 h-5 mr-2 text-cyan-400" />
-            SMC Trading Settings
+            <Settings className="w-5 h-5 mr-2 text-blue-400" />
+            Forex Trading Settings
           </h3>
           
           <div className="space-y-4">
@@ -1106,17 +1058,17 @@ const ForexSignalGenerator: React.FC = () => {
               <select
                 value={selectedSymbol}
                 onChange={(e) => setSelectedSymbol(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Symbol</option>
                 <option value="ALL" className="bg-blue-600 text-white font-bold">📊 ALL SYMBOLS</option>
-                <optgroup label="📈 Stocks">
-                  <option value="US30">US30</option>
-                </optgroup>
                 <optgroup label="🥇 Commodities">
                   <option value="XAU/USD">XAU/USD (Gold) ⭐</option>
                   <option value="XAG/USD">XAG/USD (Silver)</option>
                   <option value="USOIL">US Oil (WTI)</option>
+                </optgroup>
+                <optgroup label="📈 Stocks">
+                  <option value="US30">US30</option>
                 </optgroup>
                 <optgroup label="💱 Forex Majors">
                   <option value="EUR/USD">EUR/USD</option>
@@ -1128,21 +1080,9 @@ const ForexSignalGenerator: React.FC = () => {
                   <option value="NZD/USD">NZD/USD</option>
                 </optgroup>
                 <optgroup label="💱 Forex Crosses">
-                  <option value="EUR/JPY">EUR/JPY</option>
-                  <option value="GBP/JPY">GBP/JPY</option>
-                  <option value="EUR/GBP">EUR/GBP</option>
-                  <option value="EUR/AUD">EUR/AUD</option>
-                  <option value="GBP/AUD">GBP/AUD</option>
-                  <option value="AUD/CAD">AUD/CAD</option>
-                  <option value="CAD/JPY">CAD/JPY</option>
-                  <option value="CHF/JPY">CHF/JPY</option>
-                  <option value="AUD/CHF">AUD/CHF</option>
-                  <option value="CAD/CHF">CAD/CHF</option>
-                  <option value="EUR/CHF">EUR/CHF</option>
-                  <option value="GBP/CHF">GBP/CHF</option>
-                  <option value="NZD/CAD">NZD/CAD</option>
-                  <option value="NZD/JPY">NZD/JPY</option>
-                  <option value="AUD/NZD">AUD/NZD</option>
+                  {forexSymbols.filter(s => !['XAU/USD', 'XAG/USD', 'USOIL', 'US30', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD', 'NZD/USD'].includes(s)).map(symbol => (
+                    <option key={symbol} value={symbol}>{symbol}</option>
+                  ))}
                 </optgroup>
               </select>
             </div>
@@ -1152,7 +1092,7 @@ const ForexSignalGenerator: React.FC = () => {
               <select
                 value={selectedTimeframe}
                 onChange={(e) => setSelectedTimeframe(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Timeframe</option>
                 <option value="ALL" className="bg-blue-600 text-white font-bold">⏰ ALL TIMEFRAMES</option>
@@ -1163,13 +1103,16 @@ const ForexSignalGenerator: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Multiple Targets (R:R)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Risk:Reward Ratio</label>
               <input
-                type="text"
+                type="number"
                 value={riskRewardRatio}
-                onChange={(e) => setRiskRewardRatio(parseFloat(e.target.value) || 2.0)}
-                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
-                placeholder="1,2,3,4,5"
+                onChange={(e) => setRiskRewardRatio(parseFloat(e.target.value))}
+                step="0.1"
+                min="1"
+                max="10"
+                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter R:R (e.g., 2.0)"
               />
             </div>
 
@@ -1177,10 +1120,10 @@ const ForexSignalGenerator: React.FC = () => {
               <button
                 onClick={startAnalysis}
                 disabled={isRunning}
-                className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2"
+                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-600 disabled:to-gray-700 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2"
               >
                 <Play className="w-4 h-4" />
-                <span>🚀 Start Real Data Analysis</span>
+                <span>Start Forex Analysis</span>
               </button>
               
               <button
@@ -1189,7 +1132,7 @@ const ForexSignalGenerator: React.FC = () => {
                 className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-600 disabled:to-gray-700 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2"
               >
                 <Pause className="w-4 h-4" />
-                <span>⏹️ Stop Analysis</span>
+                <span>Stop Analysis</span>
               </button>
               
               <button
@@ -1197,66 +1140,66 @@ const ForexSignalGenerator: React.FC = () => {
                 className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>🔄 Refresh System</span>
+                <span>Refresh System</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* Market Statistics */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-blue-500/30 p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <Activity className="w-5 h-5 mr-2 text-cyan-400" />
-            Market Statistics
+            <Activity className="w-5 h-5 mr-2 text-blue-400" />
+            Forex Statistics
           </h3>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">Active Symbols</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.activeSymbols}</div>
+              <div className="text-lg font-bold text-blue-400">{stats.activeSymbols}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">Live Signals</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.liveSignals}</div>
+              <div className="text-lg font-bold text-blue-400">{stats.liveSignals}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-              <div className="text-xs text-gray-400 mb-1">Price Updates</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.priceUpdates}</div>
+              <div className="text-xs text-gray-400 mb-1">BOS</div>
+              <div className="text-lg font-bold text-blue-400">{stats.bosCount}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-              <div className="text-xs text-gray-400 mb-1">Win Rate</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.winRate}%</div>
+              <div className="text-xs text-gray-400 mb-1">CHoCH</div>
+              <div className="text-lg font-bold text-blue-400">{stats.chochCount}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-              <div className="text-xs text-gray-400 mb-1">API Calls</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.priceUpdates}</div>
+              <div className="text-xs text-gray-400 mb-1">Order Blocks</div>
+              <div className="text-lg font-bold text-blue-400">{stats.orderBlocks}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-              <div className="text-xs text-gray-400 mb-1">Data Accuracy</div>
-              <div className="text-lg font-bold text-cyan-400">98%</div>
+              <div className="text-xs text-gray-400 mb-1">FVG</div>
+              <div className="text-lg font-bold text-blue-400">{stats.fvgCount}</div>
             </div>
           </div>
         </div>
 
         {/* Live Price Feed */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-blue-500/30 p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <Globe className="w-5 h-5 mr-2 text-cyan-400" />
-            📈 Live Price Feed
+            <Globe className="w-5 h-5 mr-2 text-blue-400" />
+            Live Forex Prices
           </h3>
           
           <div className="space-y-2 max-h-64 overflow-y-auto futuristic-scrollbar">
             {Object.keys(marketData).length === 0 ? (
               <div className="text-center py-8 text-gray-400">
-                <p>🔄 Initializing real data sources...</p>
-                <p className="text-xs mt-2">Only verified prices will appear - NO FAKE DATA</p>
+                <p>🔄 Initializing forex data sources...</p>
+                <p className="text-xs mt-2">Multi-API integration</p>
               </div>
             ) : (
               Object.entries(marketData).map(([symbol, data]) => (
-                <div key={symbol} className="flex justify-between items-center p-2 bg-gray-800/50 rounded-lg border border-transparent hover:border-cyan-500/50 transition-all">
-                  <span className="text-cyan-400 font-semibold text-sm">{symbol}</span>
+                <div key={symbol} className="flex justify-between items-center p-2 bg-gray-800/50 rounded-lg border border-transparent hover:border-blue-500/50 transition-all">
+                  <span className="text-blue-400 font-semibold text-sm">{symbol}</span>
                   <span className="text-green-400 font-bold">{data.price}</span>
-                  <span className="text-xs text-gray-400">{data.isReal ? 'Live' : 'Mock'}</span>
+                  <span className="text-xs text-gray-400">{data.provider}</span>
                 </div>
               ))
             )}
@@ -1265,25 +1208,25 @@ const ForexSignalGenerator: React.FC = () => {
       </div>
 
       {/* Live Trading Signals */}
-      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-blue-500/30 p-6">
         <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-          <Zap className="w-6 h-6 mr-2 text-cyan-400" />
-          🎯 Live Trading Signals (SMC Analysis) ({signals.length})
+          <Zap className="w-6 h-6 mr-2 text-blue-400" />
+          Live Forex Signals ({signals.length})
         </h3>
         
         <div className="space-y-4 max-h-96 overflow-y-auto futuristic-scrollbar">
           {signals.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>📊 Configure settings and start analysis for live signals</p>
-              <p className="text-sm mt-2 opacity-70">Real-time SMC structure analysis with verified data only</p>
+              <p>Configure settings and start analysis for live forex signals</p>
+              <p className="text-sm mt-2 opacity-70">Real-time SMC structure analysis with multi-API data</p>
             </div>
           ) : (
             signals.map(signal => (
               <div
                 key={signal.id}
                 className={`bg-gray-800/50 rounded-xl p-6 border-l-4 transition-all hover:bg-gray-700/50 ${
-                  signal.direction === 'bullish' ? 'border-cyan-400' : 'border-red-400'
+                  signal.direction === 'bullish' ? 'border-blue-400' : 'border-red-400'
                 }`}
               >
                 <div className="flex justify-between items-start mb-4">
@@ -1293,7 +1236,7 @@ const ForexSignalGenerator: React.FC = () => {
                     </div>
                     <div>
                       <div className={`text-xl font-bold ${
-                        signal.direction === 'bullish' ? 'text-cyan-400' : 'text-red-400'
+                        signal.direction === 'bullish' ? 'text-blue-400' : 'text-red-400'
                       }`}>
                         {signal.signalType} {signal.symbol}
                       </div>
@@ -1310,7 +1253,7 @@ const ForexSignalGenerator: React.FC = () => {
                 <div className="grid grid-cols-4 gap-4 mb-4">
                   <div className="bg-gray-700/50 rounded-lg p-3 text-center">
                     <div className="text-xs text-gray-400 mb-1">Entry</div>
-                    <div className="text-cyan-400 font-bold">{signal.entryPrice}</div>
+                    <div className="text-blue-400 font-bold">{signal.entryPrice}</div>
                   </div>
                   <div className="bg-gray-700/50 rounded-lg p-3 text-center">
                     <div className="text-xs text-gray-400 mb-1">Stop Loss</div>
@@ -1335,7 +1278,7 @@ const ForexSignalGenerator: React.FC = () => {
                     {signal.confirmations.map((conf, index) => (
                       <span
                         key={index}
-                        className="px-2 py-1 bg-cyan-600/20 text-cyan-300 text-xs rounded-full border border-cyan-500/30"
+                        className="px-2 py-1 bg-blue-600/20 text-blue-300 text-xs rounded-full border border-blue-500/30"
                       >
                         {conf}
                       </span>
@@ -1352,10 +1295,10 @@ const ForexSignalGenerator: React.FC = () => {
                 {/* Copy Button */}
                 <button
                   onClick={() => copyTradeDetails(signal)}
-                  className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white py-2 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2"
+                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white py-2 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2"
                 >
                   <span>📋</span>
-                  <span>Copy Trade Details</span>
+                  <span>Copy Forex Trade Details</span>
                 </button>
               </div>
             ))
@@ -1364,12 +1307,12 @@ const ForexSignalGenerator: React.FC = () => {
       </div>
 
       {/* System Logs */}
-      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">📝 Live Activity Logs</h3>
+      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-blue-500/30 p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">📝 Forex System Logs</h3>
         <div className="bg-gray-800/50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm futuristic-scrollbar">
           {logs.map((log, index) => (
             <div key={index} className="mb-1">
-              <span className="text-cyan-400 font-bold">
+              <span className="text-blue-400 font-bold">
                 [{log.timestamp.toLocaleTimeString()}]
               </span>
               <span className={`ml-2 ${

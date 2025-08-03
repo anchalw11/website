@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Zap, TrendingUp, TrendingDown, Activity, Settings, Play, Pause, RefreshCw } from 'lucide-react';
+import { Bot, Zap, TrendingUp, TrendingDown, Activity, Globe, Settings, Play, Pause, RefreshCw } from 'lucide-react';
 
 interface CryptoSignal {
   id: string;
@@ -113,6 +113,32 @@ const CryptoSignalGenerator: React.FC = () => {
         }));
       } catch (error) {
         throw new Error(`Error fetching Binance data for ${symbol}: ${error}`);
+      }
+    }
+
+    async fetchBinancePrice(symbol: string) {
+      try {
+        const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+        if (!response.ok) throw new Error('Binance API error');
+        const data = await response.json();
+        return {
+          price: data.price,
+          provider: 'Binance',
+          timestamp: new Date(),
+          isReal: true,
+          rawPrice: parseFloat(data.price)
+        };
+      } catch (error) {
+        // Fallback to mock data if API fails
+        const basePrice = symbol === 'BTCUSDT' ? 45000 : symbol === 'ETHUSDT' ? 2800 : 1.0;
+        const price = basePrice + (Math.random() - 0.5) * basePrice * 0.02;
+        return {
+          price: price.toFixed(2),
+          provider: 'Mock',
+          timestamp: new Date(),
+          isReal: false,
+          rawPrice: price
+        };
       }
     }
 
@@ -724,32 +750,6 @@ const CryptoSignalGenerator: React.FC = () => {
     setLogs(prev => [newLog, ...prev.slice(0, 99)]);
   };
 
-  const fetchCryptoPrice = async (symbol: string) => {
-    try {
-      const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
-      if (!response.ok) throw new Error('Binance API error');
-      const data = await response.json();
-      return {
-        price: data.price,
-        provider: 'Binance',
-        timestamp: new Date(),
-        isReal: true,
-        rawPrice: parseFloat(data.price)
-      };
-    } catch (error) {
-      // Fallback to mock data
-      const basePrice = symbol === 'BTCUSDT' ? 45000 : symbol === 'ETHUSDT' ? 2800 : 1.0;
-      const price = basePrice + (Math.random() - 0.5) * basePrice * 0.02;
-      return {
-        price: price.toFixed(2),
-        provider: 'Mock',
-        timestamp: new Date(),
-        isReal: false,
-        rawPrice: price
-      };
-    }
-  };
-
   const performAdvancedSMCAnalysis = async (symbol: string, priceData: any, timeframe: string) => {
     try {
       // Fetch historical data for better analysis
@@ -844,7 +844,7 @@ const CryptoSignalGenerator: React.FC = () => {
       for (const symbol of symbols) {
         for (const timeframe of timeframes) {
           try {
-            const priceData = await fetchCryptoPrice(symbol);
+            const priceData = await smcEngine.current.fetchBinancePrice(symbol);
             
             setMarketData(prev => ({
               ...prev,
@@ -933,7 +933,7 @@ const CryptoSignalGenerator: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-orange-500/30 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <div className="text-4xl">🪙</div>
@@ -952,9 +952,9 @@ const CryptoSignalGenerator: React.FC = () => {
       {/* Controls and Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Trading Settings */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-orange-500/30 p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <Settings className="w-5 h-5 mr-2 text-cyan-400" />
+            <Settings className="w-5 h-5 mr-2 text-orange-400" />
             Crypto Trading Settings
           </h3>
           
@@ -964,7 +964,7 @@ const CryptoSignalGenerator: React.FC = () => {
               <select
                 value={selectedSymbol}
                 onChange={(e) => setSelectedSymbol(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select Symbol</option>
                 <option value="ALL" className="bg-orange-600 text-white font-bold">📊 ALL SYMBOLS</option>
@@ -979,7 +979,7 @@ const CryptoSignalGenerator: React.FC = () => {
               <select
                 value={selectedTimeframe}
                 onChange={(e) => setSelectedTimeframe(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select Timeframe</option>
                 <option value="ALL" className="bg-orange-600 text-white font-bold">⏰ ALL TIMEFRAMES</option>
@@ -998,7 +998,7 @@ const CryptoSignalGenerator: React.FC = () => {
                 step="0.1"
                 min="1"
                 max="10"
-                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                className="w-full px-3 py-2 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
                 placeholder="Enter R:R (e.g., 2.0)"
               />
             </div>
@@ -1034,44 +1034,44 @@ const CryptoSignalGenerator: React.FC = () => {
         </div>
 
         {/* Market Statistics */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-orange-500/30 p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <Activity className="w-5 h-5 mr-2 text-cyan-400" />
+            <Activity className="w-5 h-5 mr-2 text-orange-400" />
             Crypto Statistics
           </h3>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">Active Symbols</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.activeSymbols}</div>
+              <div className="text-lg font-bold text-orange-400">{stats.activeSymbols}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">Live Signals</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.liveSignals}</div>
+              <div className="text-lg font-bold text-orange-400">{stats.liveSignals}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">BOS</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.bosCount}</div>
+              <div className="text-lg font-bold text-orange-400">{stats.bosCount}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">CHoCH</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.chochCount}</div>
+              <div className="text-lg font-bold text-orange-400">{stats.chochCount}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">Order Blocks</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.orderBlocks}</div>
+              <div className="text-lg font-bold text-orange-400">{stats.orderBlocks}</div>
             </div>
             <div className="bg-gray-800/50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-400 mb-1">FVG</div>
-              <div className="text-lg font-bold text-cyan-400">{stats.fvgCount}</div>
+              <div className="text-lg font-bold text-orange-400">{stats.fvgCount}</div>
             </div>
           </div>
         </div>
 
         {/* Live Price Feed */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-orange-500/30 p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-cyan-400" />
+            <TrendingUp className="w-5 h-5 mr-2 text-orange-400" />
             Live Crypto Prices
           </h3>
           
@@ -1083,8 +1083,8 @@ const CryptoSignalGenerator: React.FC = () => {
               </div>
             ) : (
               Object.entries(marketData).map(([symbol, data]) => (
-                <div key={symbol} className="flex justify-between items-center p-2 bg-gray-800/50 rounded-lg border border-transparent hover:border-cyan-500/50 transition-all">
-                  <span className="text-cyan-400 font-semibold text-sm">{symbol}</span>
+                <div key={symbol} className="flex justify-between items-center p-2 bg-gray-800/50 rounded-lg border border-transparent hover:border-orange-500/50 transition-all">
+                  <span className="text-orange-400 font-semibold text-sm">{symbol}</span>
                   <span className="text-green-400 font-bold">${data.price}</span>
                   <span className="text-xs text-gray-400">{data.provider}</span>
                 </div>
@@ -1095,9 +1095,9 @@ const CryptoSignalGenerator: React.FC = () => {
       </div>
 
       {/* Live Trading Signals */}
-      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-orange-500/30 p-6">
         <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-          <Zap className="w-6 h-6 mr-2 text-cyan-400" />
+          <Zap className="w-6 h-6 mr-2 text-orange-400" />
           Live Crypto Signals ({signals.length})
         </h3>
         
@@ -1113,7 +1113,7 @@ const CryptoSignalGenerator: React.FC = () => {
               <div
                 key={signal.id}
                 className={`bg-gray-800/50 rounded-xl p-6 border-l-4 transition-all hover:bg-gray-700/50 ${
-                  signal.direction === 'bullish' ? 'border-cyan-400' : 'border-red-400'
+                  signal.direction === 'bullish' ? 'border-orange-400' : 'border-red-400'
                 }`}
               >
                 <div className="flex justify-between items-start mb-4">
@@ -1123,7 +1123,7 @@ const CryptoSignalGenerator: React.FC = () => {
                     </div>
                     <div>
                       <div className={`text-xl font-bold ${
-                        signal.direction === 'bullish' ? 'text-cyan-400' : 'text-red-400'
+                        signal.direction === 'bullish' ? 'text-orange-400' : 'text-red-400'
                       }`}>
                         {signal.signalType} {signal.symbol}
                       </div>
@@ -1140,7 +1140,7 @@ const CryptoSignalGenerator: React.FC = () => {
                 <div className="grid grid-cols-4 gap-4 mb-4">
                   <div className="bg-gray-700/50 rounded-lg p-3 text-center">
                     <div className="text-xs text-gray-400 mb-1">Entry</div>
-                    <div className="text-cyan-400 font-bold">${signal.entryPrice}</div>
+                    <div className="text-orange-400 font-bold">${signal.entryPrice}</div>
                   </div>
                   <div className="bg-gray-700/50 rounded-lg p-3 text-center">
                     <div className="text-xs text-gray-400 mb-1">Stop Loss</div>
@@ -1194,12 +1194,12 @@ const CryptoSignalGenerator: React.FC = () => {
       </div>
 
       {/* System Logs */}
-      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-cyan-500/30 p-6">
+      <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-orange-500/30 p-6">
         <h3 className="text-lg font-semibold text-white mb-4">📝 Crypto System Logs</h3>
         <div className="bg-gray-800/50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm futuristic-scrollbar">
           {logs.map((log, index) => (
             <div key={index} className="mb-1">
-              <span className="text-cyan-400 font-bold">
+              <span className="text-orange-400 font-bold">
                 [{log.timestamp.toLocaleTimeString()}]
               </span>
               <span className={`ml-2 ${
