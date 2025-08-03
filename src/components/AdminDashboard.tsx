@@ -4,6 +4,7 @@ import SettingsModal from './SettingsModal';
 import FuturisticBackground from './FuturisticBackground';
 import FuturisticCursor from './FuturisticCursor';
 import AutomatedSignals from './AutomatedSignals';
+import SignalGenerator from './SignalGenerator';
 
 const AdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -116,6 +117,12 @@ const AdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
                 Automated Signals
               </button>
               <button
+                onClick={() => setActiveTab('signal-generator')}
+                className={`px-4 py-2 text-sm font-semibold transition-colors rounded-t-lg ${activeTab === 'signal-generator' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Signal Generator
+              </button>
+              <button
                 onClick={() => setActiveTab('kickstarter-approvals')}
                 className={`px-4 py-2 text-sm font-semibold transition-colors rounded-t-lg ${activeTab === 'kickstarter-approvals' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'}`}
               >
@@ -207,6 +214,12 @@ const AdminDashboard = ({ onLogout }: { onLogout: () => void }) => {
             {activeTab === 'automated-signals' && (
               <div className="animate-fade-in-up">
                 <AutomatedSignals />
+              </div>
+            )}
+
+            {activeTab === 'signal-generator' && (
+              <div className="animate-fade-in-up">
+                <SignalGenerator />
               </div>
             )}
 

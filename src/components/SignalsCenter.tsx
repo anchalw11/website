@@ -31,12 +31,36 @@ const SignalsCenter = () => {
     const loadSignalsFromStorage = () => {
       // Load signals from localStorage (demo mode)
       const storedMessages = JSON.parse(localStorage.getItem('telegram_messages') || '[]');
+      const adminSignals = JSON.parse(localStorage.getItem('admin_generated_signals') || '[]');
       const storedTrades = JSON.parse(localStorage.getItem('taken_trades') || '[]');
       
-      const formattedSignals = storedMessages.map(parseSignal).filter(Boolean) as Signal[];
+      // Convert admin signals to display format
+      const convertedAdminSignals = adminSignals.map((signal: any) => ({
+        id: parseInt(signal.id.split('-')[3]) || Math.random(),
+        pair: signal.symbol,
+        type: signal.signalType,
+        entry: signal.entryPrice.toString(),
+        stopLoss: signal.stopLoss.toString(),
+        takeProfit: [signal.takeProfit.toString()],
+        confidence: signal.confidence,
+        timeframe: signal.timeframe,
+        timestamp: new Date(signal.timestamp).toLocaleString(),
+        status: signal.status,
+        analysis: signal.analysis,
+        ictConcepts: signal.confirmations || [],
+        rsr: signal.riskReward,
+        pips: 'N/A',
+        positive: null,
+        taken: false,
+        market: signal.market || 'forex'
+      }));
+      
+      const formattedTelegramSignals = storedMessages.map(parseSignal).filter(Boolean) as Signal[];
+      const allFormattedSignals = [...convertedAdminSignals, ...formattedTelegramSignals];
+      
       const takenTradeIds = new Set(storedTrades.map((trade: any) => trade.signal_id || trade.id));
 
-      const updatedSignals = formattedSignals.map(signal => ({
+      const updatedSignals = allFormattedSignals.map(signal => ({
         ...signal,
         taken: takenTradeIds.has(signal.id)
       }));
@@ -53,6 +77,7 @@ const SignalsCenter = () => {
     };
     
     window.addEventListener('newSignalSent', handleNewSignal);
+    window.addEventListener('newSignalGenerated', handleNewSignal);
     
     // Listen for signal deletions from admin dashboard
     const handleSignalDeleted = (event: any) => {
@@ -67,6 +92,7 @@ const SignalsCenter = () => {
 
     return () => {
       window.removeEventListener('newSignalSent', handleNewSignal);
+      window.removeEventListener('newSignalGenerated', handleNewSignal);
       window.removeEventListener('signalDeleted', handleSignalDeleted);
       clearInterval(interval);
     };
@@ -235,6 +261,18 @@ const SignalsCenter = () => {
         <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-white">Signals Center</h3>
             <div className="flex items-center space-x-4">
+                <select 
+                  className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    // Filter by market type
+                    const marketType = e.target.value;
+                    // This will be handled by the parent component's filtering
+                  }}
+                >
+                    <option value="all">All Markets</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="forex">Forex</option>
+                </select>
                 <select className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500">
                     <option>All Signals</option>
                     <option>Active</option>
@@ -285,6 +323,18 @@ const SignalsCenter = () => {
                     <p className="text-lg font-semibold text-blue-400">{calculateLotSize(signal).lotSize} lots</p>
                   </div>
                 </div>
+                
+                {/* Market Type Badge */}
+                {signal.market && (
+                  <div className="mt-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      signal.market === 'crypto' ? 'bg-orange-600/20 text-orange-400' : 'bg-blue-600/20 text-blue-400'
+                    }`}>
+                      {signal.market === 'crypto' ? '🪙 Crypto' : '💱 Forex'}
+                    </span>
+                  </div>
+                )}
+                
                 <div className="mt-4">
                     <p className="text-sm text-gray-400">Analysis</p>
                     <p className="text-white">{signal.analysis}</p>

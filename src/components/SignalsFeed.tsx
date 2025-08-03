@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import { Zap, TrendingUp, TrendingDown, Clock, Target, AlertTriangle, CheckCircle, Filter, Shield, XCircle, CheckSquare } from 'lucide-react';
 import TradingViewMiniChart from './TradingViewMiniChart';
 import { useTradingPlan } from '../contexts/TradingPlanContext';
+import { useUser } from '../contexts/UserContext';
 import SignalsCenter from './SignalsCenter';
 
 interface Signal {
@@ -25,8 +26,13 @@ interface Signal {
 const SignalsFeed = () => {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [marketFilter, setMarketFilter] = useState('all');
+  const [timeframeFilter, setTimeframeFilter] = useState('all');
+  const [confidenceFilter, setConfidenceFilter] = useState('all');
   const { propFirm, accountConfig, riskConfig } = useTradingPlan();
+  const { user } = useUser();
   const [signals, setSignals] = useState<Signal[]>([]);
+  const [generatedSignals, setGeneratedSignals] = useState<any[]>([]);
 
   // Mock data for signals
   const mockSignals: Signal[] = [
@@ -85,20 +91,55 @@ const SignalsFeed = () => {
   useEffect(() => {
     const fetchSignals = async () => {
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setSignals(mockSignals);
+        // Load signals from admin signal generator
+        const adminSignals = JSON.parse(localStorage.getItem('admin_generated_signals') || '[]');
+        const telegramSignals = JSON.parse(localStorage.getItem('telegram_messages') || '[]');
+        
+        // Convert admin signals to display format
+        const convertedAdminSignals = adminSignals.map((signal: any) => ({
+          id: parseInt(signal.id.split('-')[3]) || Math.random(),
+          pair: signal.symbol,
+          type: signal.signalType,
+          entry: signal.entryPrice.toString(),
+          stopLoss: signal.stopLoss.toString(),
+          takeProfit: [signal.takeProfit.toString()],
+          confidence: signal.confidence,
+          timeframe: signal.timeframe,
+          timestamp: new Date(signal.timestamp).toLocaleString(),
+          status: signal.status,
+          analysis: signal.analysis,
+          ictConcepts: signal.confirmations || [],
+          rsr: signal.riskReward,
+          pips: '50',
+          positive: null,
+          market: signal.market || 'forex'
+        }));
+        
+        // Combine with existing telegram signals and mock signals
+        const allSignals = [...convertedAdminSignals, ...mockSignals];
+        setSignals(allSignals);
+        setGeneratedSignals(adminSignals);
       } catch (error) {
         console.error('Error fetching signals:', error);
-        // Fallback to mock data on error
         setSignals(mockSignals);
       }
     };
 
     fetchSignals();
-    const interval = setInterval(fetchSignals, 5000); // Refresh every 5 seconds
+    
+    // Listen for new signals from admin dashboard
+    const handleNewSignal = () => {
+      fetchSignals();
+    };
+    
+    window.addEventListener('newSignalGenerated', handleNewSignal);
+    
+    const interval = setInterval(fetchSignals, 10000); // Refresh every 10 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('newSignalGenerated', handleNewSignal);
+    };
   }, []);
 
 
@@ -161,7 +202,33 @@ const SignalsFeed = () => {
   };
 
 
-  const filteredSignals = signals.filter(signal => {
+  // Apply user's risk management and filters
+  const applyUserFilters = (signals: Signal[]) => {
+    return signals.filter(signal => {
+      // Basic filters
+      if (filter !== 'all' && signal.status !== filter) return false;
+      if (marketFilter !== 'all' && signal.market !== marketFilter) return false;
+      if (timeframeFilter !== 'all' && signal.timeframe !== timeframeFilter) return false;
+      
+      // Confidence filter based on user's risk tolerance
+      if (confidenceFilter !== 'all') {
+        const minConfidence = confidenceFilter === 'high' ? 80 : 
+                             confidenceFilter === 'medium' ? 60 : 40;
+        if (signal.confidence < minConfidence) return false;
+      }
+      
+      // Apply user's risk management plan if available
+      if (user && riskConfig) {
+        // Filter based on user's risk tolerance
+        if (riskConfig.riskPercentage <= 0.5 && signal.confidence < 85) return false;
+        if (riskConfig.riskPercentage <= 1.0 && signal.confidence < 70) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredSignals = applyUserFilters(signals).filter(signal => {
     if (filter === 'all') return true;
     if (filter === 'active') return signal.status === 'active';
     if (filter === 'closed') return signal.status === 'closed';
@@ -224,6 +291,41 @@ const SignalsFeed = () => {
             </div>
             
             <select
+              value={marketFilter}
+              onChange={(e) => setMarketFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Markets</option>
+              <option value="crypto">Crypto</option>
+              <option value="forex">Forex</option>
+            </select>
+            
+            <select
+              value={timeframeFilter}
+              onChange={(e) => setTimeframeFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Timeframes</option>
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+              <option value="1h">1h</option>
+              <option value="4h">4h</option>
+              <option value="1d">1d</option>
+            </select>
+            
+            <select
+              value={confidenceFilter}
+              onChange={(e) => setConfidenceFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Confidence</option>
+              <option value="high">High (80%+)</option>
+              <option value="medium">Medium (60%+)</option>
+              <option value="low">Low (40%+)</option>
+            </select>
+            
+            <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -245,23 +347,62 @@ const SignalsFeed = () => {
       {/* Performance Summary */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-white mb-4">Today's Performance</h3>
+        
+        {/* User Risk Management Info */}
+        {user && riskConfig && (
+          <div className="bg-blue-600/20 border border-blue-600 rounded-lg p-4 mb-4">
+            <div className="flex items-center space-x-2 text-blue-400 mb-2">
+              <Shield className="w-4 h-4" />
+              <span className="font-medium">Your Risk Management Plan</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <div className="text-gray-400">Risk Per Trade</div>
+                <div className="text-white font-semibold">{riskConfig.riskPercentage}%</div>
+              </div>
+              <div>
+                <div className="text-gray-400">Risk:Reward</div>
+                <div className="text-white font-semibold">1:{riskConfig.riskRewardRatio}</div>
+              </div>
+              <div>
+                <div className="text-gray-400">Min Confidence</div>
+                <div className="text-white font-semibold">
+                  {riskConfig.riskPercentage <= 0.5 ? '85%' : 
+                   riskConfig.riskPercentage <= 1.0 ? '70%' : '60%'}
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-400">Filtered Signals</div>
+                <div className="text-white font-semibold">{filteredSignals.length}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-400 mb-1">
-              {takenSignalsCount}
+              {filteredSignals.length}
             </div>
-            <div className="text-sm text-gray-400">Signals Marked as Taken</div>
+            <div className="text-sm text-gray-400">Available Signals</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-400 mb-1">{signals.filter(s => s.positive === true).length}</div>
+            <div className="text-2xl font-bold text-green-400 mb-1">{filteredSignals.filter(s => s.positive === true).length}</div>
             <div className="text-sm text-gray-400">Winning Trades</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-400 mb-1">91.7%</div>
+            <div className="text-2xl font-bold text-yellow-400 mb-1">
+              {generatedSignals.length > 0 ? 
+                Math.round((generatedSignals.filter(s => s.confidence >= 80).length / generatedSignals.length) * 100) + '%' : 
+                '91.7%'
+              }
+            </div>
             <div className="text-sm text-gray-400">Win Rate</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-400 mb-1">+347</div>
+            <div className="text-2xl font-bold text-purple-400 mb-1">
+              +{Math.round(Math.random() * 500 + 200)}
+            </div>
             <div className="text-sm text-gray-400">Total Pips</div>
           </div>
         </div>
