@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -23,10 +24,10 @@ import TradingJournalDashboard from './TradingJournalDashboard';
 import MultiAccountTracker from './MultiAccountTracker';
 import RiskManagement from './RiskManagement';
 import AlertSystem from './AlertSystem';
-import MarketOverviewWidget from './MarketOverviewWidget';
 import NotificationCenter from './NotificationCenter';
 import AccountSettings from './AccountSettings';
 import PropFirmRules from './PropFirmRules';
+import ConsentForm from './ConsentForm';
 import FuturisticBackground from './FuturisticBackground';
 import FuturisticCursor from './FuturisticCursor';
 
@@ -35,6 +36,23 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [notifications, setNotifications] = useState(3);
   const [selectedAccount, setSelectedAccount] = useState('main');
+  const [showConsentForm, setShowConsentForm] = useState(false);
+
+  // Check if user has given consent
+  useEffect(() => {
+    const consentGiven = localStorage.getItem('user_consent_accepted');
+    if (!consentGiven && user?.setupComplete) {
+      setShowConsentForm(true);
+    }
+  }, [user]);
+
+  const handleConsentAccept = () => {
+    setShowConsentForm(false);
+  };
+
+  const handleConsentDecline = () => {
+    logout();
+  };
 
   if (!user || !user.setupComplete) {
     const message = user?.membershipTier === 'kickstarter'
@@ -54,6 +72,7 @@ const Dashboard = () => {
   }
 
   const hasProAccess = user.membershipTier === 'professional' || user.membershipTier === 'enterprise';
+  const hasJournalAccess = user.membershipTier === 'pro' || user.membershipTier === 'professional' || user.membershipTier === 'enterprise';
 
   const accounts = [
     { id: 'main', name: 'Main Account', balance: '$108,450', type: 'FTMO' },
@@ -65,29 +84,43 @@ const Dashboard = () => {
 
   const sidebarTabs = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-5 h-5" /> },
-    { id: 'market', label: 'Market Intel', icon: <TrendingUp className="w-5 h-5" /> },
     { id: 'signals', label: 'Signal Feed', icon: <Zap className="w-5 h-5" /> },
     { id: 'rules', label: 'Compliance Matrix', icon: <Shield className="w-5 h-5" /> },
     { id: 'analytics', label: 'Performance', icon: <PieChart className="w-5 h-5" /> },
-    ...(hasProAccess ? [{ id: 'journal', label: 'Trade Journal', icon: <BookOpen className="w-5 h-5" /> }] : []),
+    ...(hasJournalAccess ? [{ id: 'journal', label: 'Trade Journal', icon: <BookOpen className="w-5 h-5" /> }] : []),
     ...(hasProAccess ? [{ id: 'accounts', label: 'Multi-Account', icon: <Building className="w-5 h-5" /> }] : []),
     { id: 'risk', label: 'Risk Protocol', icon: <Target className="w-5 h-5" /> },
     { id: 'alerts', label: 'Alerts', icon: <Bell className="w-5 h-5" /> },
   ];
 
   const stats = [
-    { label: 'Account Balance', value: currentAccount.balance, change: '+8.2%', icon: <DollarSign className="w-8 h-8" />, color: 'green' },
-    { label: 'Win Rate', value: '87.3%', change: '+2.1%', icon: <Target className="w-8 h-8" />, color: 'blue' },
-    { label: 'Total Trades', value: '247', change: '+12', icon: <Activity className="w-8 h-8" />, color: 'purple' },
-    { label: 'Profit Factor', value: '2.34', change: '+0.15', icon: <Award className="w-8 h-8" />, color: 'yellow' }
+    { label: 'Account Balance', value: currentAccount.balance, change: 'Live Data', icon: <DollarSign className="w-8 h-8" />, color: 'green' },
+    { label: 'Win Rate', value: 'Track Trades', change: 'Mark Taken', icon: <Target className="w-8 h-8" />, color: 'blue' },
+    { label: 'Total Trades', value: 'No Data', change: 'Start Trading', icon: <Activity className="w-8 h-8" />, color: 'purple' },
+    { label: 'Profit Factor', value: 'Calculate', change: 'From Trades', icon: <Award className="w-8 h-8" />, color: 'yellow' }
   ];
 
-  const recentTrades = [
-    { pair: 'EURUSD', type: 'Buy', result: '+45 pips', profit: '+$450', time: '2 hours ago', positive: true },
-    { pair: 'GBPUSD', type: 'Sell', result: '+32 pips', profit: '+$320', time: '4 hours ago', positive: true },
-    { pair: 'XAUUSD', type: 'Buy', result: '-15 pips', profit: '-$150', time: '6 hours ago', positive: false },
-    { pair: 'USDJPY', type: 'Sell', result: '+28 pips', profit: '+$280', time: '1 day ago', positive: true },
-  ];
+  // Load actual trades from localStorage
+  const [recentTrades, setRecentTrades] = useState([]);
+
+  useEffect(() => {
+    const loadTrades = () => {
+      const storedTrades = JSON.parse(localStorage.getItem('taken_trades') || '[]');
+      const formattedTrades = storedTrades.slice(0, 4).map((trade: any) => ({
+        pair: trade.pair || 'Unknown',
+        type: trade.type || 'Unknown',
+        result: 'Pending',
+        profit: 'Calculating...',
+        time: new Date(trade.timestamp).toLocaleString(),
+        positive: null
+      }));
+      setRecentTrades(formattedTrades);
+    };
+
+    loadTrades();
+    window.addEventListener('tradesUpdated', loadTrades);
+    return () => window.removeEventListener('tradesUpdated', loadTrades);
+  }, []);
 
   const renderOverview = () => (
     <div className="space-y-6 animate-fade-in-up">
@@ -123,11 +156,26 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-gray-800/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-700">
           <h3 className="text-xl font-semibold text-white mb-6">Recent Trades</h3>
+          {recentTrades.length === 0 ? (
+            <div className="text-center py-12">
+              <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <div className="text-gray-400 text-lg font-medium mb-2">No trades recorded yet</div>
+              <div className="text-sm text-gray-500 mb-4">
+                Start taking signals and mark them as "taken" to see your performance here
+              </div>
+              <div className="bg-blue-600/20 border border-blue-600 rounded-lg p-4">
+                <p className="text-blue-300 text-sm">
+                  <strong>Important:</strong> Click "Mark as Taken" on any signal you execute. 
+                  This helps us track your performance without accessing your trading account credentials.
+                </p>
+              </div>
+            </div>
+          ) : (
           <div className="space-y-4">
             {recentTrades.map((trade, index) => (
               <div key={index} className="flex items-center justify-between p-4 bg-gray-900/50 rounded-lg">
                 <div className="flex items-center space-x-4">
-                  <div className={`w-3 h-3 rounded-full ${trade.positive ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                  <div className={`w-3 h-3 rounded-full ${trade.positive ? 'bg-green-400' : trade.positive === false ? 'bg-red-400' : 'bg-yellow-400'}`}></div>
                   <div>
                     <div className="text-white font-medium">{trade.pair}</div>
                     <div className="text-sm text-gray-400">{trade.type} • {trade.time}</div>
@@ -135,11 +183,12 @@ const Dashboard = () => {
                 </div>
                 <div className="text-right">
                   <div className="text-white font-medium">{trade.result}</div>
-                  <div className={`text-sm ${trade.positive ? 'text-green-400' : 'text-red-400'}`}>{trade.profit}</div>
+                  <div className={`text-sm ${trade.positive ? 'text-green-400' : trade.positive === false ? 'text-red-400' : 'text-yellow-400'}`}>{trade.profit}</div>
                 </div>
               </div>
             ))}
           </div>
+          )}
         </div>
         <div className="bg-gray-800/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4">Market Status</h3>
@@ -190,11 +239,10 @@ const Dashboard = () => {
           </header>
           <main className="flex-1 p-6 overflow-y-auto">
             {activeTab === 'overview' && renderOverview()}
-            {activeTab === 'market' && <div className="h-full"><div className="bg-gray-800/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-700 h-full"><div className="h-full min-h-[600px]"><MarketOverviewWidget /></div></div></div>}
             {activeTab === 'signals' && <SignalsFeed />}
             {activeTab === 'rules' && <PropFirmRules />}
             {activeTab === 'analytics' && <PerformanceAnalytics />}
-            {activeTab === 'journal' && hasProAccess && <TradingJournalDashboard />}
+            {activeTab === 'journal' && hasJournalAccess && <TradingJournalDashboard />}
             {activeTab === 'accounts' && hasProAccess && <MultiAccountTracker />}
             {activeTab === 'risk' && <RiskManagement />}
             {activeTab === 'alerts' && <AlertSystem />}
@@ -202,6 +250,13 @@ const Dashboard = () => {
             {activeTab === 'settings' && <AccountSettings />}
           </main>
         </div>
+
+        {/* Consent Form Modal */}
+        <ConsentForm
+          isOpen={showConsentForm}
+          onAccept={handleConsentAccept}
+          onDecline={handleConsentDecline}
+        />
       </div>
     </>
   );

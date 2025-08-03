@@ -16,6 +16,8 @@ import {
   DollarSign
 } from 'lucide-react';
 import TradingJournalEntry from './TradingJournalEntry';
+import BacktestingTool from './BacktestingTool';
+import MarketOverviewWidget from './MarketOverviewWidget';
 
 interface JournalEntry {
   id: string;
@@ -60,6 +62,7 @@ interface JournalEntry {
 
 const TradingJournalDashboard: React.FC = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [activeJournalTab, setActiveJournalTab] = useState('journal');
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,6 +167,40 @@ const TradingJournalDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Journal Tabs */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <div className="flex border-b border-gray-700 mb-6">
+          <button
+            onClick={() => setActiveJournalTab('journal')}
+            className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+              activeJournalTab === 'journal'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span className="font-medium">Trading Journal</span>
+          </button>
+          <button
+            onClick={() => setActiveJournalTab('chart')}
+            className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
+              activeJournalTab === 'chart'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="font-medium">Chart Analysis & Backtesting</span>
+          </button>
+        </div>
+      </div>
+
+      {activeJournalTab === 'chart' && (
+        <BacktestingTool />
+      )}
+
+      {activeJournalTab === 'journal' && (
+        <>
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
         <div>
@@ -435,6 +472,8 @@ const TradingJournalDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

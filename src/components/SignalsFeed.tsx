@@ -26,9 +26,10 @@ interface Signal {
 const SignalsFeed = () => {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
-  const [marketFilter, setMarketFilter] = useState('all');
+  const [assetFilter, setAssetFilter] = useState('all');
   const [timeframeFilter, setTimeframeFilter] = useState('all');
   const [confidenceFilter, setConfidenceFilter] = useState('all');
+  const [directionFilter, setDirectionFilter] = useState('all');
   const { propFirm, accountConfig, riskConfig } = useTradingPlan();
   const { user } = useUser();
   const [signals, setSignals] = useState<Signal[]>([]);
@@ -207,8 +208,14 @@ const SignalsFeed = () => {
     return signals.filter(signal => {
       // Basic filters
       if (filter !== 'all' && signal.status !== filter) return false;
-      if (marketFilter !== 'all' && signal.market !== marketFilter) return false;
+      if (assetFilter !== 'all') {
+        if (assetFilter === 'crypto' && !['BTC', 'ETH', 'ADA', 'BNB', 'XRP', 'SOL', 'DOT', 'DOGE', 'AVAX', 'LINK'].some(crypto => signal.pair.includes(crypto))) return false;
+        if (assetFilter === 'forex' && !['EUR', 'GBP', 'USD', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD'].some(currency => signal.pair.includes(currency))) return false;
+        if (assetFilter === 'commodities' && !['XAU', 'XAG', 'OIL', 'US30'].some(commodity => signal.pair.includes(commodity))) return false;
+        if (assetFilter !== 'crypto' && assetFilter !== 'forex' && assetFilter !== 'commodities' && !signal.pair.includes(assetFilter)) return false;
+      }
       if (timeframeFilter !== 'all' && signal.timeframe !== timeframeFilter) return false;
+      if (directionFilter !== 'all' && signal.type.toLowerCase() !== directionFilter) return false;
       
       // Confidence filter based on user's risk tolerance
       if (confidenceFilter !== 'all') {
@@ -227,6 +234,9 @@ const SignalsFeed = () => {
       return true;
     });
   };
+
+  // Get unique assets from signals for filter dropdown
+  const uniqueAssets = [...new Set(signals.map(signal => signal.pair))].sort();
 
   const filteredSignals = applyUserFilters(signals).filter(signal => {
     if (filter === 'all') return true;
@@ -291,13 +301,17 @@ const SignalsFeed = () => {
             </div>
             
             <select
-              value={marketFilter}
-              onChange={(e) => setMarketFilter(e.target.value)}
+              value={assetFilter}
+              onChange={(e) => setAssetFilter(e.target.value)}
               className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">All Markets</option>
+              <option value="all">All Assets</option>
               <option value="crypto">Crypto</option>
               <option value="forex">Forex</option>
+              <option value="commodities">Commodities</option>
+              {uniqueAssets.map(asset => (
+                <option key={asset} value={asset}>{asset}</option>
+              ))}
             </select>
             
             <select
@@ -323,6 +337,16 @@ const SignalsFeed = () => {
               <option value="high">High (80%+)</option>
               <option value="medium">Medium (60%+)</option>
               <option value="low">Low (40%+)</option>
+            </select>
+            
+            <select
+              value={directionFilter}
+              onChange={(e) => setDirectionFilter(e.target.value)}
+              className="bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Directions</option>
+              <option value="buy">Buy Only</option>
+              <option value="sell">Sell Only</option>
             </select>
             
             <select

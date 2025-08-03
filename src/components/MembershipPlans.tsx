@@ -69,6 +69,8 @@ const MembershipPlans = () => {
         'Auto lot size calculator',
         'Access to private community',
         'Multi account tracker',
+        'Advanced trading journal',
+        'Backtesting tools',
         'Instant access to new features'
       ]
     },
@@ -91,6 +93,9 @@ const MembershipPlans = () => {
         'Auto lot size calculator',
         'Access to private community',
         'Multi account tracker',
+        'Advanced trading journal',
+        'Professional backtesting suite',
+        'Chart analysis tools',
         'Instant access to new features'
       ]
     }

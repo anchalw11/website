@@ -166,10 +166,10 @@ const LandingPage = () => {
                 View Pricing
               </Link>
               <Link
-                to="/kickstarter"
+                to="/affiliate-links"
                 className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 flex items-center gap-2 shadow-xl hover:shadow-green-500/25"
               >
-                Get Started <ArrowRight className="w-5 h-5" />
+                Get Free Access <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
 

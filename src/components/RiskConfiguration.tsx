@@ -2,13 +2,19 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, ArrowRight, ArrowLeft, Target, TrendingUp } from 'lucide-react';
 import { useTradingPlan } from '../contexts/TradingPlanContext';
+import { useUser } from '../contexts/UserContext';
 import Header from './Header';
 
 const RiskConfiguration = () => {
   const [riskPercentage, setRiskPercentage] = useState<number | null>(null);
   const [riskRewardRatio, setRiskRewardRatio] = useState<number | null>(null);
+  const [tradingExperience, setTradingExperience] = useState<string>('');
+  const [dailyTradingTime, setDailyTradingTime] = useState<string>('');
+  const [maxConsecutiveLosses, setMaxConsecutiveLosses] = useState<number>(3);
+  const [preferredSession, setPreferredSession] = useState<string>('');
   const navigate = useNavigate();
   const { propFirm, accountConfig, updateRiskConfig } = useTradingPlan();
+  const { user } = useUser();
 
   if (!propFirm || !accountConfig) {
     navigate('/setup/prop-firm');
@@ -126,7 +132,11 @@ const RiskConfiguration = () => {
     if (riskPercentage && riskRewardRatio) {
       updateRiskConfig({
         riskPercentage,
-        riskRewardRatio
+        riskRewardRatio,
+        tradingExperience,
+        dailyTradingTime,
+        maxConsecutiveLosses,
+        preferredSession
       });
       navigate('/questionnaire');
     }
@@ -254,6 +264,78 @@ const RiskConfiguration = () => {
             </div>
           </div>
 
+          {/* Trading Experience & Preferences */}
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-white mb-6 text-center">Trading Experience & Preferences</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Trading Experience</label>
+                <select
+                  value={tradingExperience}
+                  onChange={(e) => setTradingExperience(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                >
+                  <option value="">Select Experience Level</option>
+                  <option value="beginner">Beginner (0-1 years)</option>
+                  <option value="intermediate">Intermediate (1-3 years)</option>
+                  <option value="advanced">Advanced (3-5 years)</option>
+                  <option value="expert">Expert (5+ years)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Daily Trading Time</label>
+                <select
+                  value={dailyTradingTime}
+                  onChange={(e) => setDailyTradingTime(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                >
+                  <option value="">Select Trading Time</option>
+                  <option value="1-2">1-2 hours</option>
+                  <option value="3-4">3-4 hours</option>
+                  <option value="5-6">5-6 hours</option>
+                  <option value="full-time">Full-time (8+ hours)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Preferred Trading Session</label>
+                <select
+                  value={preferredSession}
+                  onChange={(e) => setPreferredSession(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
+                >
+                  <option value="">Select Session</option>
+                  <option value="asian">Asian Session (Tokyo)</option>
+                  <option value="london">London Session</option>
+                  <option value="newyork">New York Session</option>
+                  <option value="overlap">London/NY Overlap</option>
+                  <option value="any">Any Session</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Max Consecutive Losses: {maxConsecutiveLosses}
+                </label>
+                <input
+                  type="range"
+                  min="2"
+                  max="5"
+                  value={maxConsecutiveLosses}
+                  onChange={(e) => setMaxConsecutiveLosses(parseInt(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>2</span>
+                  <span>3</span>
+                  <span>4</span>
+                  <span>5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Projections */}
           {projections && (
             <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700 p-8 mb-8">
@@ -315,9 +397,9 @@ const RiskConfiguration = () => {
             
             <button
               onClick={handleContinue}
-              disabled={!riskPercentage || !riskRewardRatio}
+              disabled={!riskPercentage || !riskRewardRatio || !tradingExperience || !dailyTradingTime || !preferredSession}
               className={`flex items-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-all ${
-                riskPercentage && riskRewardRatio
+                riskPercentage && riskRewardRatio && tradingExperience && dailyTradingTime && preferredSession
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-700 text-gray-400 cursor-not-allowed'
               }`}

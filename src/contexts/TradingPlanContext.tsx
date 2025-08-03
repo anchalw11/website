@@ -29,6 +29,10 @@ interface AccountConfig {
 interface RiskConfig {
   riskPercentage: number;
   riskRewardRatio: number;
+  tradingExperience?: string;
+  dailyTradingTime?: string;
+  maxConsecutiveLosses?: number;
+  preferredSession?: string;
 }
 
 interface TradingPlan {
