@@ -36,7 +36,7 @@ const SignalsCenter = () => {
       
       // Convert admin signals to display format
       const convertedAdminSignals = adminSignals.map((signal: any) => ({
-        id: parseInt(signal.id.split('-')[3]) || Math.random(),
+        id: parseInt(signal.id.split('-')[4] || signal.id.split('-')[3]) || Math.random(),
         pair: signal.symbol,
         type: signal.signalType,
         entry: signal.entryPrice.toString(),

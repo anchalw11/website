@@ -209,9 +209,10 @@ const SignalsFeed = () => {
       // Basic filters
       if (filter !== 'all' && signal.status !== filter) return false;
       if (assetFilter !== 'all') {
-        if (assetFilter === 'crypto' && !['BTC', 'ETH', 'ADA', 'BNB', 'XRP', 'SOL', 'DOT', 'DOGE', 'AVAX', 'LINK'].some(crypto => signal.pair.includes(crypto))) return false;
+        if (assetFilter === 'crypto' && !['BTC', 'ETH', 'ADA', 'BNB', 'XRP', 'SOL', 'DOT', 'DOGE', 'AVAX', 'LINK', 'LTC', 'XLM', 'FIL', 'AAVE'].some(crypto => signal.pair.includes(crypto))) return false;
         if (assetFilter === 'forex' && !['EUR', 'GBP', 'USD', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD'].some(currency => signal.pair.includes(currency))) return false;
-        if (assetFilter === 'commodities' && !['XAU', 'XAG', 'OIL', 'US30'].some(commodity => signal.pair.includes(commodity))) return false;
+        if (assetFilter === 'commodities' && !['XAU', 'XAG', 'OIL', 'USOIL'].some(commodity => signal.pair.includes(commodity))) return false;
+        if (assetFilter === 'stocks' && !['US30', 'US100', 'SPX'].some(stock => signal.pair.includes(stock))) return false;
         if (assetFilter !== 'crypto' && assetFilter !== 'forex' && assetFilter !== 'commodities' && !signal.pair.includes(assetFilter)) return false;
       }
       if (timeframeFilter !== 'all' && signal.timeframe !== timeframeFilter) return false;
@@ -309,6 +310,7 @@ const SignalsFeed = () => {
               <option value="crypto">Crypto</option>
               <option value="forex">Forex</option>
               <option value="commodities">Commodities</option>
+              <option value="stocks">Stocks</option>
               {uniqueAssets.map(asset => (
                 <option key={asset} value={asset}>{asset}</option>
               ))}

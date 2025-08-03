@@ -28,6 +28,8 @@ import SettingsModal from './SettingsModal';
 import { Settings } from 'lucide-react';
 import FuturisticBackground from './FuturisticBackground';
 import FuturisticCursor from './FuturisticCursor';
+import CryptoSignalGenerator from './CryptoSignalGenerator';
+import ForexSignalGenerator from './ForexSignalGenerator';
 
 interface User {
   id: string;
@@ -543,6 +545,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               Signal Matrix
             </button>
             <button
+              onClick={() => setActiveTab('crypto-generator')}
+              className={`py-2 px-4 text-lg font-medium transition-all duration-300 ${activeTab === 'crypto-generator' ? 'text-cyan-300 border-b-2 border-cyan-300' : 'text-gray-400 hover:text-white'}`}
+            >
+              🪙 Crypto Generator
+            </button>
+            <button
+              onClick={() => setActiveTab('forex-generator')}
+              className={`py-2 px-4 text-lg font-medium transition-all duration-300 ${activeTab === 'forex-generator' ? 'text-cyan-300 border-b-2 border-cyan-300' : 'text-gray-400 hover:text-white'}`}
+            >
+              💱 Forex Generator
+            </button>
+            <button
               onClick={() => setActiveTab('affiliate-screenshots')}
               className={`py-2 px-4 text-lg font-medium transition-all duration-300 ${activeTab === 'affiliate-screenshots' ? 'text-cyan-300 border-b-2 border-cyan-300' : 'text-gray-400 hover:text-white'}`}
             >
@@ -873,6 +887,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <ChartAnalysis />
             <AutomatedSignals />
           </>
+        )}
+        {activeTab === 'crypto-generator' && (
+          <CryptoSignalGenerator />
+        )}
+        {activeTab === 'forex-generator' && (
+          <ForexSignalGenerator />
         )}
         {activeTab === 'affiliate-screenshots' && (
           <div className="text-white">
